@@ -1,6 +1,8 @@
 # WeiboSpider
 This is a sina weibo spider built by scrapy
 
+**这是一个持续维护的微博爬虫开源项目,有任何问题请开issue**
+
 更多关于微博爬虫的介绍请移步:[微博爬虫总结：构建单机千万级别的微博爬虫系统](http://www.nghuyong.top/2018/09/12/spider/%E5%BE%AE%E5%8D%9A%E7%88%AC%E8%99%AB%E6%80%BB%E7%BB%93%EF%BC%9A%E6%9E%84%E5%BB%BA%E5%8D%95%E6%9C%BA%E5%8D%83%E4%B8%87%E7%BA%A7%E5%88%AB%E7%9A%84%E5%BE%AE%E5%8D%9A%E7%88%AC%E8%99%AB%E7%B3%BB%E7%BB%9F/)
 
 ## 项目说明
@@ -12,55 +14,48 @@ This is a sina weibo spider built by scrapy
 | [master](https://github.com/nghuyong/WeiboSpider/tree/master) | 账号池 | 百万级|
 | [senior](https://github.com/nghuyong/WeiboSpider/tree/senior) | 账号池+分布式 | 千万级+ | 
 
-
 该项目爬取的数据字段说明，请移步:[数据字段说明与示例](./data_stracture.md)
 
 已经在senior分支的基础上新增了[search分支](https://github.com/nghuyong/WeiboSpider/tree/search)，用于微博关键词搜索
 
 
-## Change log
+## update
+- 2019/05/07 全面修复历史问题，增加用户的标签，评论的点赞，微博的发布平台/表情/图片/视频等新的字段
 - 2018/10/13 添加[微博搜索分支](https://github.com/nghuyong/WeiboSpider/tree/search)
 - 2018/9/30 添加布隆过滤器
 
 ## 如何使用
-下面是master分支，也就是构建单机百万级的爬虫
-
-如果你只想用你自己的一个账号简单爬取微博，每日十万级即可，请移步[simple分支](https://github.com/nghuyong/WeiboSpider/tree/simple)
-
-如果你需要大规模爬取微博，需要单机千万级别，请移步[senior分支](https://github.com/nghuyong/WeiboSpider/tree/senior)
+下面是simple分支，也就是单账号爬取，每日十万级的抓取量
 
 ### 克隆本项目 && 安装依赖
 本项目Python版本为Python3.6
 ```bash
 git clone git@github.com:nghuyong/WeiboSpider.git
 cd WeiboSpider
+git checkout simple
 pip install -r requirements.txt
 ```
-除此之外，还需要安装mongodb和phantomjs，这个自行Google把
+除此之外，还需要安装mongodb，这个自行Google把
 
-### 购买账号
-小号购买地址(**访问需要翻墙**): http://www.xiaohao.shop/ 
+### 替换Cookie
+访问https://weibo.cn/
 
-需要购买**绑号无验证码类型的微博小号**（重点！）
+并登陆，打开浏览器的开发者模式，再次刷新
 
-![](./images/xiaohao_shop.png)
+![](./images/cookie.png)
 
-购买越多，sina/settings.py 中的延迟就可以越低，并发也就可以越大
+复制weibo.cn这个数据包，network中的cookie值
 
-**将购买的账号复制到`sina/account_build/account.txt`中，格式与`account_sample.txt`保持一致**。
-
-### 构建账号池
-
-```bash
-python sina/account_build/login.py
+将`sina/settings.py`中:
+```python
+DEFAULT_REQUEST_HEADERS = {
+    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.13; rv:61.0) Gecko/20100101 Firefox/61.0',
+    'Cookie':'OUTFOX_SEARCH_USER_ID_NCOO=1780588551.4011402; browser=d2VpYm9mYXhpYW4%3D; SCF=AsJyCasIxgS59OhHHUWjr9OAw83N3BrFKTpCLz2myUf2_vdK1UFy6Hucn5KaD7mXIoq8G25IMnTUPRRfr3U8ryQ.; SUBP=0033WrSXqPxfM725Ws9jqgMF55529P9D9WFGJINkqaLbAcTzz2isXDTA5JpX5KMhUgL.Foq0e0571hBp1hn2dJLoIp7LxKML1KBLBKnLxKqL1hnLBoMpe0ec1h5feKMR; SUB=_2A252a4N_DeRhGeBI61EV9CzPyD-IHXVVly03rDV6PUJbkdAKLRakkW1NRqYKs18Yrsf_SKnpgehmxRFUVgzXtwQO; SUHB=0U15b0sZ4CX6O4; _T_WM=0653fb2596917b052152f773a5976ff4; _WEIBO_UID=6603442333; SSOLoginState=1536482073; ALF=1539074073'
+}
 ```
-运行截图:
+Cookie字段替换成你自己的Cookie
 
-![](./images/account_build_screenshot.png)
-
-这是你的mongodb中将多一个账号表，如下所示:
-
-![](./images/account.png)
+**如果爬虫运行出现403/302，说明账号被封/cookie失效，请重新替换cookie**
 
 ### 运行爬虫
 ```bash
@@ -84,11 +79,10 @@ scrapy crawl weibo_spider
 
 |    爬虫配置   | 配置值 |
 | :---: | :----: |
-| 账号池大小  | 200+ |
 | CONCURRENT_REQUESTS | 16 |
-| DOWNLOAD_DELAY | 0.1s|
-| 每分钟抓取网页量 | 250+ |
-| 每分钟抓取数据量 | 2500+ |
-| 总体一天抓取数据量 | **360万+** |
+| DOWNLOAD_DELAY | 3s|
+| 每分钟抓取网页量 | 15+ |
+| 每分钟抓取数据量 | 150+ |
+| 总体一天抓取数据量 | **20万+** |
 
 实际速度和你自己电脑的网速/CPU/内存有很大关系。
