@@ -23,6 +23,8 @@ DOWNLOADER_MIDDLEWARES = {
     'scrapy.downloadermiddlewares.redirect.RedirectMiddleware': None,
     'sina.middlewares.CookieMiddleware': 300,
     'sina.middlewares.RedirectMiddleware': 200,
+    'sina.middlewares.IPProxyMiddleware': 100,
+    'scrapy.downloadermiddlewares.httpproxy.HttpProxyMiddleware': 101,
 }
 
 ITEM_PIPELINES = {
@@ -56,3 +58,9 @@ BLOOMFILTER_BIT = 31
 
 # Persist
 SCHEDULER_PERSIST = True
+
+
+# IP
+DOWNLOAD_TIMEOUT = 10
+
+RETRY_TIMES = 15
