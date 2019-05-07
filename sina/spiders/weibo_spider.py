@@ -255,13 +255,13 @@ class WeiboSpider(Spider):
         tree_node = etree.HTML(response.body)
         comment_nodes = tree_node.xpath('//div[@class="c" and contains(@id,"C_")]')
         for comment_node in comment_nodes:
-            comment_user_url = comment_node.xpath('.//a[contains(@href,"/u/")]/@href')[0]
+            comment_user_url = comment_node.xpath('.//a[contains(@href,"/u/")]/@href')
             if not comment_user_url:
                 continue
             comment_item = CommentItem()
             comment_item['crawl_time'] = int(time.time())
             comment_item['weibo_url'] = response.meta['weibo_url']
-            comment_item['comment_user_id'] = re.search(r'/u/(\d+)', comment_user_url).group(1)
+            comment_item['comment_user_id'] = re.search(r'/u/(\d+)', comment_user_url[0]).group(1)
             comment_item['content'] = extract_comment_content(etree.tostring(comment_node, encoding='unicode'))
             comment_item['_id'] = comment_node.xpath('./@id')[0]
             created_at_info = comment_node.xpath('.//span[@class="ct"]/text()')[0]
