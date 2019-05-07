@@ -61,6 +61,10 @@ python sina/account_build/login.py
 
 ![](./images/account.png)
 
+### 加入代理IP
+
+请重写[fetch_proxy](https://github.com/nghuyong/WeiboSpider/blob/senior/sina/middlewares.py#L53)方法，该方法需要返回一个代理ip
+
 
 ### 初始化redis
 分布式爬虫是所有的爬虫都从redis中获取URL
