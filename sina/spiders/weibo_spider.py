@@ -8,7 +8,7 @@ from scrapy.http import Request
 from scrapy.utils.project import get_project_settings
 from scrapy_redis.spiders import RedisSpider
 from sina.items import TweetsItem, InformationItem
-from sina.spiders.utils import time_fix, extract_weibo_content, extract_comment_content
+from sina.spiders.utils import time_fix, extract_weibo_content
 import time
 
 
@@ -78,7 +78,11 @@ class WeiboSpider(RedisSpider):
 
                 map_node = tweet_node.xpath('.//a[contains(text(),"显示地图")]')
                 if map_node:
-                    tweet_item['location'] = True
+                    map_node = map_node[0]
+                    map_node_url = map_node.xpath('./@href')[0]
+                    map_info = re.search(r'xy=(.*?)&', map_node_url).group(1)
+                    tweet_item['location_map_info'] = map_info
+                    tweet_item['location'] = map_node.xpath('./preceding-sibling::a/text()')[0]
 
                 repost_node = tweet_node.xpath('.//a[contains(text(),"原文评论[")]/@href')
                 if repost_node:
@@ -94,8 +98,6 @@ class WeiboSpider(RedisSpider):
                 else:
                     tweet_html = etree.tostring(tweet_node, encoding='unicode')
                     tweet_item['content'] = extract_weibo_content(tweet_html)
-                    if 'location' in tweet_item:
-                        tweet_item['location'] = tweet_node.xpath('.//span[@class="ctt"]/a[last()]/text()')[0]
                     yield tweet_item
 
                 yield Request(url="https://weibo.cn/{}/info".format(tweet_item['user_id']),
@@ -111,8 +113,6 @@ class WeiboSpider(RedisSpider):
         content_node = tree_node.xpath('//*[@id="M_"]/div[1]')[0]
         tweet_html = etree.tostring(content_node, encoding='unicode')
         tweet_item['content'] = extract_weibo_content(tweet_html)
-        if 'location' in tweet_item:
-            tweet_item['location'] = content_node.xpath('.//span[@class="ctt"]/a[last()]/text()')[0]
         yield tweet_item
 
     def parse_information(self, response):
