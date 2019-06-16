@@ -1,7 +1,11 @@
 #!/usr/bin/env python
 # encoding: utf-8
 import re
+from collections import defaultdict
+
+import pickle
 from lxml import etree
+from scrapy import signals
 from scrapy import Spider
 from scrapy.crawler import CrawlerProcess
 from scrapy.selector import Selector
@@ -12,10 +16,34 @@ from sina.spiders.utils import time_fix, extract_weibo_content, extract_comment_
 import time
 
 
+
 class WeiboSpider(Spider):
     name = "weibo_spider"
     base_url = "https://weibo.cn"
 
+    @classmethod
+    def from_crawler(cls, crawler, *args, **kwargs):
+        spider = super(WeiboSpider, cls).from_crawler(crawler, *args, **kwargs)
+        # load history records from file
+        last_crawled_records_path = crawler.settings.get('last_crawded_records_path', 'data/last_crawled_records.pkl')
+        spider.last_crawled_records_path = last_crawled_records_path
+        try:
+            with open(last_crawled_records_path, 'rb') as f:
+                spider.last_crawded_records = pickle.load(f)
+        except FileNotFoundError:
+            spider.last_crawled_records = defaultdict(set)
+        crawler.signals.connect(spider.save_last_crawled_records, signal=signals.spider_closed)
+        return spider
+    
+    def save_last_crawled_records(self, spider):
+        """
+        override history records of last_crawled_records
+        """
+        save_path = spider.last_crawded_records_path
+        with open(save_path, 'wb') as f:
+            pickle.dump(spider.last_crawled_records, f)
+        spider.logger.info('save the last crawled records')
+            
     def start_requests(self):
         start_uids = [
             # '2803301701',  # 人民日报
@@ -103,15 +131,6 @@ class WeiboSpider(Spider):
                       dont_filter=True)
 
     def parse_tweet(self, response):
-        if response.url.endswith('page=1'):
-            # 如果是第1页，一次性获取后面的所有页
-            all_page = re.search(r'/>&nbsp;1/(\d+)页</div>', response.text)
-            if all_page:
-                all_page = all_page.group(1)
-                all_page = int(all_page)
-                for page_num in range(2, all_page + 1):
-                    page_url = response.url.replace('page=1', 'page={}'.format(page_num))
-                    yield Request(page_url, self.parse_tweet, dont_filter=True, meta=response.meta)
         """
         解析本页的数据
         """
@@ -183,6 +202,19 @@ class WeiboSpider(Spider):
 
             except Exception as e:
                 self.logger.error(e)
+        
+        # 先第一个页面微博，再解析评论，再解析其后微博用户的其他页面
+        if response.url.endswith('page=1'):
+            # 如果是第1页，一次性获取后面的所有页
+            all_page = re.search(r'/>&nbsp;1/(\d+)页</div>', response.text)
+            if all_page:
+                all_page = all_page.group(1)
+                all_page = int(all_page)
+                # 最多解析 2 页微博
+                all_page = min(all_page, 2)
+                for page_num in range(2, all_page + 1):
+                    page_url = response.url.replace('page=1', 'page={}'.format(page_num))
+                    yield Request(page_url, self.parse_tweet, dont_filter=True, meta=response.meta)
 
     def parse_all_content(self, response):
         # 有阅读全文的情况，获取全文
@@ -203,6 +235,8 @@ class WeiboSpider(Spider):
             if all_page:
                 all_page = all_page.group(1)
                 all_page = int(all_page)
+                # 最多爬该微博博主两个页面的关注的人
+                all_page = min(all_page, 2)
                 for page_num in range(2, all_page + 1):
                     page_url = response.url.replace('page=1', 'page={}'.format(page_num))
                     yield Request(page_url, self.parse_follow, dont_filter=True, meta=response.meta)
@@ -228,6 +262,8 @@ class WeiboSpider(Spider):
             if all_page:
                 all_page = all_page.group(1)
                 all_page = int(all_page)
+                # 最多爬两个页面的粉丝
+                all_page = min(all_page, 2)
                 for page_num in range(2, all_page + 1):
                     page_url = response.url.replace('page=1', 'page={}'.format(page_num))
                     yield Request(page_url, self.parse_fans, dont_filter=True, meta=response.meta)
@@ -250,6 +286,8 @@ class WeiboSpider(Spider):
             if all_page:
                 all_page = all_page.group(1)
                 all_page = int(all_page)
+                # 最多解析10页评论，如果热评一直能排到10页，那意味着非热评的最新的评论一直无法获取到
+                all_page = min(all_page, 10)
                 for page_num in range(2, all_page + 1):
                     page_url = response.url.replace('page=1', 'page={}'.format(page_num))
                     yield Request(page_url, self.parse_comment, dont_filter=True, meta=response.meta)
